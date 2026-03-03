@@ -110,6 +110,54 @@ Artifacts:
 
 ---
 
+## Case D (3-axis check): modality x Q quality x dimension
+Question:
+- "Does OT still win in high dimensions when noise is absent?"
+- "Can we inspect all three axes: modality, Q quality, dimension?"
+
+Answer from direct runs:
+- In clean-Q runs (`noise=bias=spike=0`), OT does **not** win, including 8D.
+- As Q quality degrades, the winner transitions from KL to OT.
+- This transition happens earlier when modality is harder.
+
+Direct clean-Q evidence (`results/ot_wins_dim_sweep_cleanq_winner_table.csv`):
+- 3D: KL `-0.0592` vs best OT `-0.1103` (`all_ot_beat_kl=0`)
+- 4D: KL `-0.0649` vs best OT `-0.1474` (`all_ot_beat_kl=0`)
+- 5D: KL `-0.0724` vs best OT `-0.1832` (`all_ot_beat_kl=0`)
+- 8D: KL `-0.0987` vs best OT `-0.2959` (`all_ot_beat_kl=0`)
+
+3-axis sweep setup (quick map):
+- Script: `scripts/run_3axis_regime_sweep.py`
+- Output: `results/regime_3axis_quick_grid.csv`
+- Axes:
+  - modality: `low`, `mid`, `high`
+  - Q quality: `clean`, `mid`, `noisy`
+  - dimension: `3, 4, 5, 8`
+
+OT all-win counts (`all_ot_beat_kl=1`) out of 4 dimensions:
+- low modality: `clean 0/4`, `mid 0/4`, `noisy 4/4`
+- mid modality: `clean 0/4`, `mid 1/4`, `noisy 4/4`
+- high modality: `clean 0/4`, `mid 3/4`, `noisy 4/4`
+
+Mean `best(OT)-KL` across all modality x dimension cells:
+- clean Q: `-0.1555` (KL favored)
+- mid Q: `-0.0107` (near boundary)
+- noisy Q: `+0.2086` (OT favored)
+
+Plots:
+- ![3-axis low modality](./results/regime_3axis_quick_heatmap_low.png)
+- ![3-axis mid modality](./results/regime_3axis_quick_heatmap_mid.png)
+- ![3-axis high modality](./results/regime_3axis_quick_heatmap_high.png)
+
+Artifacts:
+- `results/ot_wins_dim_sweep_cleanq_winner_table.csv`
+- `results/regime_3axis_quick_grid.csv`
+- `results/regime_3axis_quick_heatmap_low.png`
+- `results/regime_3axis_quick_heatmap_mid.png`
+- `results/regime_3axis_quick_heatmap_high.png`
+
+---
+
 ## Kept files (only win/loss evidence)
 ### CSV
 - `results/lambda_sweep_highmodes_realistic_q2_s5_summary.csv`
@@ -119,6 +167,8 @@ Artifacts:
 - `results/ot_wins_dim_sweep_full_raw.csv`
 - `results/ot_wins_dim_sweep_full_summary.csv`
 - `results/ot_wins_dim_sweep_full_winner_table.csv`
+- `results/ot_wins_dim_sweep_cleanq_winner_table.csv`
+- `results/regime_3axis_quick_grid.csv`
 
 ### Plots
 - `results/lambda_sweep_highmodes_realistic_q2_s5_curve.png`
@@ -130,6 +180,9 @@ Artifacts:
 - `results/lambda_sweep_highmodes_overtrust_q10_s5_extra_best_seed_strip.png`
 - `results/lambda_sweep_highmodes_overtrust_q10_s5_best_comparison.png`
 - `results/ot_wins_dim_sweep_full_reward_curves.png`
+- `results/regime_3axis_quick_heatmap_low.png`
+- `results/regime_3axis_quick_heatmap_mid.png`
+- `results/regime_3axis_quick_heatmap_high.png`
 
 ---
 

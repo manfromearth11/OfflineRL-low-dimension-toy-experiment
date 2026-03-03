@@ -1,0 +1,59 @@
+env:
+  action_dims:
+  - 3
+  - 4
+  - 5
+  - 8
+  n_data: 20000
+  offsets:
+    mediocre: 0.4
+    bad: 2.5
+  stds:
+    good: 0.12
+    mediocre: 0.5
+    bad: 0.5
+  weights:
+    good: 0.45
+    mediocre_pos: 0.225
+    mediocre_neg: 0.225
+    bad_pos: 0.05
+    bad_neg: 0.05
+  good_mode_ids:
+  - 0
+  bad_mode_ids:
+  - 3
+  - 4
+corruption:
+  q_noise_std: 2.0
+  q_bias_bad: 0.3
+  bad_spike_prob: 0.0
+  bad_spike_value: 0.0
+training:
+  lr: 0.003
+  batch_size: 256
+  epochs: 60
+  steps_per_epoch: 12
+kl:
+  alpha: 0.2
+ot:
+  lambdas:
+  - 0.03
+  - 0.05
+  - 0.1
+  - 0.3
+  - 1.0
+  lam_q: 1.0
+  partial_mass: 0.3
+  unbalanced_reg: 0.08
+  unbalanced_reg_m: 0.4
+  batch_size: 96
+  sinkhorn_reg: 0.08
+  sinkhorn_iter: 100
+eval:
+  n_eval_samples: 10000
+  recall_radius_mult: 1.2
+experiment:
+  seeds:
+  - 0
+  - 1
+  - 2

@@ -104,6 +104,7 @@ Notation used in this section:
 | Mean `best_pot_minus_kl` | `+0.0606` |
 | Cells where `UOT > KL` | `68 / 108` |
 | Cells where `L2 > KL` | `68 / 108` |
+| Cells where `L2 > UOT` | `68 / 108` |
 | Cells where `all_ot_beat_kl = 1` | `59 / 108` |
 | Best constrained winner count: `l2_constraint` | `68` |
 | Best constrained winner count: `unbalanced_ot` | `40` |

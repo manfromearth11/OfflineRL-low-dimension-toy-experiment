@@ -9,6 +9,7 @@ Designed toy (single-state bandit):
 Methods:
   - BC
   - Forward KL (exp reweighting)
+  - Reverse KL (AWR-style weighted MLE + KL(pi||beta) penalty)
   - Wasserstein OT
   - Partial OT (potential-based replacement)
   - Unbalanced OT
@@ -291,6 +292,49 @@ def train_forward_kl(
             lw = lw - lw.max()
             w = torch.softmax(lw, dim=0)
             loss = -(w.detach() * policy.log_prob(a)).sum()
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            final_loss = float(loss.item())
+    return final_loss
+
+
+def train_reverse_kl(
+    policy: StaticDiagGaussian,
+    behavior_model: StaticDiagGaussian,
+    actions_t: torch.Tensor,
+    qhat_t: torch.Tensor,
+    train_cfg: dict,
+    alpha: float,
+    beta: float,
+    seed: int,
+) -> float:
+    """AWR-style weighted MLE + reverse-KL penalty KL(pi||beta)."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    opt = torch.optim.Adam(policy.parameters(), lr=float(train_cfg["lr"]))
+    n = actions_t.shape[0]
+    bsz = int(train_cfg["batch_size"])
+    epochs = int(train_cfg["epochs"])
+    steps = int(train_cfg["steps_per_epoch"])
+    final_loss = 0.0
+
+    for _ in range(epochs):
+        for _ in range(steps):
+            idx = torch.randint(0, n, (bsz,))
+            a = actions_t[idx]
+            q = qhat_t[idx]
+
+            adv = q - q.mean()
+            lw = (adv / alpha).float()
+            lw = lw - lw.max()
+            w = torch.softmax(lw, dim=0)
+            mle_loss = -(w.detach() * policy.log_prob(a)).sum()
+
+            a_pi = policy.rsample(bsz)
+            kl_pen = (policy.log_prob(a_pi) - behavior_model.log_prob(a_pi)).mean()
+            loss = mle_loss + beta * kl_pen
+
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -640,6 +684,14 @@ def plot_reward_curves(summary: List[dict], out_path: str):
         rows = [r for r in summary if int(r["dim"]) == dim]
         fkl = next(r for r in rows if r["method"] == "forward_kl")
         ax.axhline(fkl["mean_reward_mean"], linestyle="--", color="black", label="Forward KL")
+        rkl_rows = [r for r in rows if r["method"] == "reverse_kl"]
+        if rkl_rows:
+            ax.axhline(
+                rkl_rows[0]["mean_reward_mean"],
+                linestyle=":",
+                color="#555555",
+                label="Reverse KL",
+            )
 
         for method, color in curves:
             rr = sorted([r for r in rows if r["method"] == method], key=lambda x: x["lambda"])
@@ -669,16 +721,24 @@ def build_winner_table(summary: List[dict]) -> List[dict]:
         s = [r for r in summary if int(r["dim"]) == dim]
         fkl = next(r for r in s if r["method"] == "forward_kl")
         fkl_r = fkl["mean_reward_mean"]
+        rkl_rows = [r for r in s if r["method"] == "reverse_kl"]
+        rkl_r = rkl_rows[0]["mean_reward_mean"] if rkl_rows else float("nan")
 
         best = {}
         for m in ["wasserstein", "partial_ot", "unbalanced_ot", "l2_constraint"]:
             cand = [r for r in s if r["method"] == m]
             best[m] = max(cand, key=lambda x: x["mean_reward_mean"])
+        best_ot_reward = max(
+            best["wasserstein"]["mean_reward_mean"],
+            best["partial_ot"]["mean_reward_mean"],
+            best["unbalanced_ot"]["mean_reward_mean"],
+        )
 
         rows.append(
             {
                 "dim": dim,
                 "forward_kl_mean_reward": fkl_r,
+                "reverse_kl_mean_reward": rkl_r,
                 "best_wasserstein_lambda": best["wasserstein"]["lambda"],
                 "best_wasserstein_reward": best["wasserstein"]["mean_reward_mean"],
                 "best_partial_lambda": best["partial_ot"]["lambda"],
@@ -689,6 +749,14 @@ def build_winner_table(summary: List[dict]) -> List[dict]:
                 "best_l2_lambda": best["l2_constraint"]["lambda"],
                 "best_l2_reward": best["l2_constraint"]["mean_reward_mean"],
                 "best_l2_minus_kl": best["l2_constraint"]["mean_reward_mean"] - fkl_r,
+                "best_ot_minus_reverse_kl": (
+                    best_ot_reward - rkl_r if not math.isnan(rkl_r) else float("nan")
+                ),
+                "best_l2_minus_reverse_kl": (
+                    best["l2_constraint"]["mean_reward_mean"] - rkl_r
+                    if not math.isnan(rkl_r)
+                    else float("nan")
+                ),
                 "all_ot_beat_kl": int(
                     (best["wasserstein"]["mean_reward_mean"] > fkl_r)
                     and (best["partial_ot"]["mean_reward_mean"] > fkl_r)
@@ -721,6 +789,7 @@ def main():
     ot_cfg = copy.deepcopy(cfg["ot"])
     partial_cfg = copy.deepcopy(cfg.get("ot_partial", {}))
     l2_cfg = copy.deepcopy(cfg.get("l2_constraint", {}))
+    kl_reverse_cfg = copy.deepcopy(cfg.get("kl_reverse", {}))
     eval_cfg = copy.deepcopy(cfg["eval"])
     exp_cfg = copy.deepcopy(cfg["experiment"])
 
@@ -885,6 +954,50 @@ def main():
             )
             print(
                 f"  Forward KL    reward={m['mean_reward']:8.4f} bad={m['bad_mass']:.3f} "
+                f"recall={m['good_recall']:.3f}"
+            )
+
+            behavior_model = StaticDiagGaussian(dim)
+            behavior_model.load_state_dict(bc.state_dict())
+            behavior_model.eval()
+            for p in behavior_model.parameters():
+                p.requires_grad_(False)
+
+            rkl = StaticDiagGaussian(dim)
+            rkl_loss = train_reverse_kl(
+                rkl,
+                behavior_model=behavior_model,
+                actions_t=actions_t,
+                qhat_t=qhat_t,
+                train_cfg=train_cfg,
+                alpha=float(kl_reverse_cfg.get("alpha", kl_cfg.get("alpha", 0.2))),
+                beta=float(kl_reverse_cfg.get("beta", 0.1)),
+                seed=seed * 100 + 5,
+            )
+            m = evaluate_metrics(
+                rkl,
+                means,
+                stds,
+                good_mode_ids,
+                bad_mode_ids,
+                reward_center_t=reward_center_t,
+                n_eval=int(eval_cfg["n_eval_samples"]),
+                recall_radius_mult=float(eval_cfg["recall_radius_mult"]),
+            )
+            raw.append(
+                {
+                    "dim": dim,
+                    "seed": seed,
+                    "method": "reverse_kl",
+                    "lambda": 1.0,
+                    "mean_reward": m["mean_reward"],
+                    "bad_mass": m["bad_mass"],
+                    "good_recall": m["good_recall"],
+                    "final_loss": rkl_loss,
+                }
+            )
+            print(
+                f"  Reverse KL    reward={m['mean_reward']:8.4f} bad={m['bad_mass']:.3f} "
                 f"recall={m['good_recall']:.3f}"
             )
 
@@ -1066,6 +1179,7 @@ def main():
         fieldnames=[
             "dim",
             "forward_kl_mean_reward",
+            "reverse_kl_mean_reward",
             "best_wasserstein_lambda",
             "best_wasserstein_reward",
             "best_partial_lambda",
@@ -1076,6 +1190,8 @@ def main():
             "best_l2_lambda",
             "best_l2_reward",
             "best_l2_minus_kl",
+            "best_ot_minus_reverse_kl",
+            "best_l2_minus_reverse_kl",
             "all_ot_beat_kl",
         ],
     )
@@ -1087,6 +1203,7 @@ def main():
     for r in winners:
         print(
             f"dim={r['dim']} KL={r['forward_kl_mean_reward']:.4f} | "
+            f"RKL={r['reverse_kl_mean_reward']:.4f} | "
             f"W={r['best_wasserstein_reward']:.4f}@{r['best_wasserstein_lambda']} "
             f"P={r['best_partial_reward']:.4f}@{r['best_partial_lambda']} "
             f"U={r['best_unbalanced_reward']:.4f}@{r['best_unbalanced_lambda']} "

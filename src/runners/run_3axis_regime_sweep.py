@@ -306,6 +306,7 @@ def main() -> None:
                 winners = read_winner_table(winner_path)
                 for r in winners:
                     kl = float(r["forward_kl_mean_reward"])
+                    rkl = float(r.get("reverse_kl_mean_reward", "nan"))
                     w = float(r["best_wasserstein_reward"])
                     p = float(r["best_partial_reward"])
                     u = float(r["best_unbalanced_reward"])
@@ -318,13 +319,20 @@ def main() -> None:
                             "q_quality": q,
                             "dim": int(r["dim"]),
                             "forward_kl_mean_reward": kl,
+                            "reverse_kl_mean_reward": rkl,
                             "best_wasserstein_reward": w,
                             "best_partial_reward": p,
                             "best_unbalanced_reward": u,
                             "best_l2_reward": l2,
                             "best_ot_minus_kl": best_ot - kl,
+                            "best_ot_minus_reverse_kl": (
+                                best_ot - rkl if rkl == rkl else float("nan")
+                            ),
                             "best_pot_minus_kl": float(r["best_partial_minus_kl"]),
                             "best_l2_minus_kl": float(r["best_l2_minus_kl"]),
+                            "best_l2_minus_reverse_kl": float(
+                                r.get("best_l2_minus_reverse_kl", "nan")
+                            ),
                             "all_ot_beat_kl": int(r["all_ot_beat_kl"]),
                         }
                     )
@@ -339,13 +347,16 @@ def main() -> None:
             "q_quality",
             "dim",
             "forward_kl_mean_reward",
+            "reverse_kl_mean_reward",
             "best_wasserstein_reward",
             "best_partial_reward",
             "best_unbalanced_reward",
             "best_l2_reward",
             "best_ot_minus_kl",
+            "best_ot_minus_reverse_kl",
             "best_pot_minus_kl",
             "best_l2_minus_kl",
+            "best_l2_minus_reverse_kl",
             "all_ot_beat_kl",
         ],
     )

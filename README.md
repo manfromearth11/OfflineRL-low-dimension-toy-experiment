@@ -59,6 +59,7 @@ Panel order:
 
 - `bc`
 - `forward_kl`
+- `reverse_kl`
 - `wasserstein`
 - `partial_ot` (potential-game replacement, PPL-style)
 - `unbalanced_ot`
@@ -66,6 +67,11 @@ Panel order:
 
 Policy family in this toy:
 - State-free static diagonal Gaussian policy.
+
+Note:
+- `reverse_kl` is now wired into the 4-axis runner and reward-curve plots.
+- The numeric tables in this report are from the previously completed run (forward-KL-referenced grid).
+- To refresh all numbers with reverse-KL columns included everywhere, rerun `full4`.
 
 ## 6) Budget and Outputs
 

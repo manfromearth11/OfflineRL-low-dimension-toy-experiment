@@ -1,0 +1,2 @@
+dim,forward_kl_mean_reward,reverse_kl_mean_reward,best_wasserstein_lambda,best_wasserstein_reward,best_partial_lambda,best_partial_reward,best_unbalanced_lambda,best_unbalanced_reward,best_partial_minus_kl,best_l2_lambda,best_l2_reward,best_l2_minus_kl,best_ot_minus_reverse_kl,best_l2_minus_reverse_kl,all_ot_beat_kl
+2,-0.6900026202201843,-0.7038761973381042,0.1,-0.6696814298629761,0.03,-0.6607242226600647,0.05,-0.6674389839172363,0.02927839756011963,0.1,-0.6601731181144714,0.02982950210571289,0.04315197467803955,0.04370307922363281,1

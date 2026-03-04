@@ -1,0 +1,2 @@
+scenario,modality,q_quality,dim,forward_kl_mean_reward,reverse_kl_mean_reward,best_wasserstein_reward,best_partial_reward,best_unbalanced_reward,best_l2_reward,best_ot_minus_kl,best_ot_minus_reverse_kl,best_pot_minus_kl,best_l2_minus_kl,best_l2_minus_reverse_kl,all_ot_beat_kl
+baseline,mid,mid,2,-0.6679455637931824,-0.6756548881530762,-0.669718861579895,-0.6634764671325684,-0.6664780974388123,-0.6621000170707703,0.004469096660614014,0.012178421020507812,0.004469096660614014,0.005845546722412109,0.013554871082305908,0
